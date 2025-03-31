@@ -1,0 +1,841 @@
+#+title: Alma API BIBFRAME
+#+property: header-args:python :python /home/ss/.virtualenvs/alma-lod/bin/python3 :results verbatim :exports code
+#+INFOJS_OPT: view:t toc:t ltoc:t mouse:underline buttons:0 path:org-info.min.js
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="solarized-dark.min.css" />
+#+EXPORT_FILE_NAME: pages/index
+
+* About this tutorial
+This tutorial is about importing BIBFRAME from LoC into Alma. It's goal is to give you a starting point for writing your own scripts fitting your usecase. It assumes some familiarity with python or another scripting language.
+
+You can follow along by pasting the code into your Python interpreter.
+
+I will make videos discussing the parts of it and add links to them here.
+
+If you spot any errors, please report them to me: stefan.schuh@obvsg.at
+
+English is not my native language, so I gladly take grammar corrections and style suggestions, too. ;-)
+
+* System requirements
+This tutorial was developed and tested on Fedora Linux 41 with Python 3.13.1. There is nothing OS-specific here, so it should work without problems on Mac and Windows as well. As soon as I get access to a Windows machine, I will try it there.
+
+On most Linux distributions Python comes preinstalled. You will have to install it on Windows. Get it here: https://www.python.org/
+
+Note, that the invocations of the Python interpreter may vary a bit on your system. It's =python3= for me, but could also be just =python=, =python.exe= (on Windows) or similar.
+
+** Virtual environment and third party libraries
+I don't install any Python libraries outside of virtual environments, so I don't mess up my system. If you are not concerned about that, you can skip that and jump ahead to =pip install ...=
+
+#+begin_src shell
+$ python3 -m virualenv .venv
+$ source .venv/bin/activate
+#+end_src
+
+This creates an isolated environment and activates it. You can see this as there will be =(.venv)= prepended to your command line prompt.
+
+Once you have done that, you have to install the only dependency:
+
+#+begin_src shell
+(.venv)$ pip install requests
+#+end_src
+
+If you are done you can deactivate the environment by typing =deactivate= on the prompt.
+** API Key
+To follow along, you need an API key with read/write permissions, preferably for a sandbox environment.
+
+I assume that you have the API key in an environment variable. In bash like shells, you can accomplish this by
+
+#+begin_src shell :exports code
+$ export API_KEY_PSB=paste-api-key-here
+#+end_src
+
+YMMV on Windows. You can put it in the =config.py= file, if you absolutely have no other choice. I strongly advise against doing so for security reasons.
+* Library code
+** Configuration
+
+Our configuration will reside in it's own file, so our script isn't cluttered with constant definitions.
+
+*** XML-Namespaces
+XML-Namespaces that occur in BIBFRAME documents. This is to have prettier output (=bf= instead of =ns1= prefixes etc.) and also needed for XPath (=ET.find()= etc.).
+
+#+name: namespaces
+#+begin_src python :tangle no :session python
+NS = {
+    "bf": "http://id.loc.gov/ontologies/bibframe/",
+    "bflc": "http://id.loc.gov/ontologies/bflc/",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "madsrdf": "http://www.loc.gov/mads/rdf/v1#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "lclocal": "http://id.loc.gov/ontologies/lclocal/",
+}
+
+# register all namespaces for nicer output (no ns1, ns2, ... prefixes)
+for prfx, uri in NS.items():
+    ET.register_namespace(prfx, uri)
+#+end_src
+*** API-Key
+You should never store any secrets in source files. You WILL eventually overlook it and publish it on GitHub. So we get it from an environment variable.
+
+#+name: api-key
+#+begin_src python :tangle no :session python
+API_KEY = os.environ.get("API_KEY_PSB") or "put-your-key-here-if-you-absolutely-must"
+#+end_src
+
+*** API URL
+Put the base URL of your Alma API Endpoint here. As I am in Austria, it's the one for Europe. As I'm on it, I create a template for the bib API, so I can put the MMSID in it to get a full API-URL.
+
+#+name: api-base-url
+#+begin_src python :tangle no :session python
+BASE_URL = "https://api-eu.hosted.exlibrisgroup.com/almaws/v1"
+bib_api = BASE_URL + "/bibs/{mms_id}"
+#+end_src
+*** Session headers
+We use a session to make requests against the Alma API. All requests using this session are using the same headers:
+
+#+name: alma-session-headers
+#+begin_src python
+ALMA_SESSION_HEADERS = {
+    "accept": "application/xml",
+    "content-type": "application/xml",
+    "validate": "false",
+    "authorization": f"apikey {API_KEY}"
+}
+#+end_src
+
+*** Put together config.py
+#+begin_src python :tangle bfloc2alma/config.py :noweb yes :session python
+import os
+from xml.etree import ElementTree as ET
+
+<<namespaces>>
+<<api-key>>
+<<api-base-url>>
+<<alma-session-headers>>
+#+end_src
+
+#+RESULTS:
+: None
+
+** Functions
+At the end I want to have a CLI program that takes some LoC-IDs, gets the data from there and puts it into Alma and prints out the newly created MMSIDs - so I can delete them again ;-)
+
+But first we define some functions and try it with one example, step by step.
+
+*** Imports
+For our main module to work we need to import some libraries.
+
+- Standard library
+  - =os=: To get the API key from the environment
+  - =xml.etree.ElementTree=: We need to change the XML. Never do that by means of string manipulation, you will regret it - at least I have. Time and time again. For our purposes the built in library should suffice.
+
+- Third party
+  - =requests=: [[https://requests.readthedocs.io/en/latest/][HTTP for Humans]] for making HTTP requests.
+
+#+begin_src python :session python :tangle bfloc2alma/lib.py
+import os
+from xml.etree import ElementTree as ET
+
+import requests
+
+# our configuration
+# from config import *
+#+end_src
+
+#+RESULTS:
+: None
+
+Comment out the last line if you paste the code into your Python-REPL or Jupyter Notebook.
+
+*** Getting data from LoC
+We use a function to get records from LoC. The function takes following arguments:
+
+- =loc_id=: The ID of the record in LoC. Note that this is the bare number and as such is not unambiguous, as works and instances can have the same number and are differentiated in the URI.
+- =entity=: whether to fetch a work or an instance with the given ID
+- =compact=: whether to get the full or the compact version
+- =as_tree=: whether to return the result as XML string or as =ElementTree.Element= data structure for further handling.
+- =session=: if there is a session, multiple calls to the same endpoint perform much better. If we intend to get a lot of records, we can therefore pass a session to this function.
+
+#+begin_src python :session python :tangle bfloc2alma/lib.py
+# get BIBFRAME from LoC
+def get_bibframe_from_loc(loc_id, entity="work", compact=True, as_tree=False, session=None):
+    """Get a BIBFRAME work from LoC. Return the xml of the record.
+
+    entity: "work" or "instance"
+    If compact: get compact format.
+    If as_tree: return the XML as ElementTree
+    """
+    url = f"https://id.loc.gov/resources/{entity}s/{loc_id}{'.bibframe' if compact else ''}.rdf"
+
+    # use session if available
+    if session:
+        response = session.get(url)
+    else:
+        response = requests.get(url)
+
+    response.raise_for_status()
+
+    if as_tree:
+        return ET.fromstring(response.text)
+    else:
+        return response.text
+#+end_src
+
+#+RESULTS:
+: None
+
+*** Prepare BIBFRAME record for the Alma API
+For a BIBFRAME record to be posted to Almas API it has to be wrapped in some XML. It's a bad idea to do this by string manipulation, so we use the =xml.etree.ElementTree=-API of Python.
+
+#+begin_src python :session python :tangle bfloc2alma/lib.py
+# prep BIBFRAME record for Alma
+def prep_rec(bf_rec):
+    """Wrap BIBFRAME to be posted to Almas API.
+
+    <bib>
+      <record_format>lcbf_work</record_format>
+      <record>
+        [BIBFRAME HERE ...]
+      </record>
+    </bib>
+    """
+
+    # bf_rec needs to be an ET.Element to be handled further
+    if type(bf_rec) == str:
+        bf_rec = ET.fromstring(bf_rec)
+    elif type(bf_rec) != ET.Element:
+        raise Error("bf_rec must be str or ET.Element!")
+
+    # check which entity we have
+    if bf_rec.find('bf:Work', {"bf": "http://id.loc.gov/ontologies/bibframe/"}) is not None:
+        entity = "work"
+    elif bf_rec.find('bf:Instance', {"bf": "http://id.loc.gov/ontologies/bibframe/"}) is not None:
+        entity = "instance"
+    else:
+        raise Exception("Input is neither a work nor an instance!")
+
+    # create XML tree
+    bib = ET.Element('bib')
+    record_format = ET.Element('record_format')
+    record_format.text = f"lcbf_{entity}"
+    bib.append(record_format)
+    record = ET.Element("record")
+    record.append(bf_rec)
+    bib.append(record)
+
+    return ET.tostring(bib)
+#+end_src
+*** Helpers
+A small function to get the MMS-ID from an API response:
+
+#+name: get_mmsid
+#+begin_src python :session python :tangle bfloc2alma/lib.py
+def get_mmsid(response):
+    """Get the MMS ID from an Alma API response."""
+    response_tree = ET.fromstring(response.text)
+    mms = response_tree.find('mms_id')
+    return mms.text
+#+end_src
+
+* Walkthrough with one Example
+Our Example is "Weapons of Math Destruction" by Cathy O'Neil. The ID is "19016283"
+
+Another one would be Mary Roach's "Stiff", "12983234".
+
+** Geting the data from LoC
+So, let's get our work and instance:
+#+begin_src python :session python
+work_xml = get_bibframe_from_loc("19016283", entity="work", compact=True)
+instance_xml = get_bibframe_from_loc("19016283", entity="instance", compact=True)
+#+end_src
+
+#+RESULTS:
+: None
+
+How does it look?
+#+begin_src python :session python
+work_xml
+#+end_src
+
+#+begin_src xml
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <bf:Work rdf:about="http://id.loc.gov/resources/works/19016283" xmlns:bf="http://id.loc.gov/ontologies/bibframe/">
+    <bflc:aap xmlns:bflc="http://id.loc.gov/ontologies/bflc/">O'Neil, Cathy Weapons of math destruction</bflc:aap>
+    <bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">o'neilcathyweaponsofmathdestruction</bflc:aap-normalized>
+    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Text"/>
+    <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Monograph"/>
+    <bf:language rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+    <bf:supplementaryContent rdf:resource="http://id.loc.gov/vocabulary/msupplcont/bibliography"/>
+    <bf:supplementaryContent rdf:resource="http://id.loc.gov/vocabulary/msupplcont/index"/>
+    <bf:geographicCoverage rdf:resource="http://id.loc.gov/vocabulary/geographicAreas/n-us"/>
+    <bf:classification>
+      <bf:ClassificationLcc>
+	<bf:classificationPortion>QA76.9.B45</bf:classificationPortion>
+	<bf:itemPortion>O64 2016</bf:itemPortion>
+	<bf:assigner rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+	<bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/uba"/>
+      </bf:ClassificationLcc>
+    </bf:classification>
+    <bf:classification>
+      <bf:ClassificationDdc>
+	<bf:classificationPortion>005.7</bf:classificationPortion>
+	<bf:source>
+	  <bf:Source>
+	    <bf:code>23</bf:code>
+	  </bf:Source>
+	</bf:source>
+	<bf:edition>full</bf:edition>
+	<bf:assigner rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+      </bf:ClassificationDdc>
+    </bf:classification>
+    <bf:contribution>
+      <bf:Contribution>
+	<rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+	<bf:agent rdf:resource="http://id.loc.gov/rwo/agents/no2013123474"/>
+	<bf:role rdf:resource="http://id.loc.gov/vocabulary/relators/aut"/>
+      </bf:Contribution>
+    </bf:contribution>
+    <bf:title>
+      <bf:Title>
+	<bf:mainTitle>Weapons of math destruction</bf:mainTitle>
+      </bf:Title>
+    </bf:title>
+    <bf:content rdf:resource="http://id.loc.gov/vocabulary/contentTypes/txt"/>
+    <bf:subject>
+      <bf:Topic>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+	<rdfs:label xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">Big data--Social aspects--United States</rdfs:label>
+	<madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Big data--Social aspects--United States</madsrdf:authoritativeLabel>
+	<madsrdf:isMemberOfMADSScheme rdf:resource="http://id.loc.gov/authorities/subjects" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#"/>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh2012003227"/>
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh00002758"/>
+	  <madsrdf:Geographic rdf:about="http://id.loc.gov/rwo/agents/n78095330-781"/>
+	</madsrdf:componentList>
+	<bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">bigdatasocialaspectsunitedstates</bflc:aap-normalized>
+	<bf:source rdf:resource="http://id.loc.gov/authorities/subjects"/>
+      </bf:Topic>
+    </bf:subject>
+    <bf:subject>
+      <bf:Topic>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+	<rdfs:label xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">Big data--Political aspects--United States</rdfs:label>
+	<madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Big data--Political aspects--United States</madsrdf:authoritativeLabel>
+	<madsrdf:isMemberOfMADSScheme rdf:resource="http://id.loc.gov/authorities/subjects" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#"/>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh2012003227"/>
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh00005651"/>
+	  <madsrdf:Geographic rdf:about="http://id.loc.gov/rwo/agents/n78095330-781"/>
+	</madsrdf:componentList>
+	<bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">bigdatapoliticalaspectsunitedstates</bflc:aap-normalized>
+	<bf:source rdf:resource="http://id.loc.gov/authorities/subjects"/>
+      </bf:Topic>
+    </bf:subject>
+    <bf:subject>
+      <bf:Topic>
+	<rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+	<rdfs:label xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">Social indicators--Mathematical models--Moral and ethical aspects</rdfs:label>
+	<madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Social indicators--Mathematical models--Moral and ethical aspects</madsrdf:authoritativeLabel>
+	<madsrdf:isMemberOfMADSScheme rdf:resource="http://id.loc.gov/authorities/subjects" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#"/>
+	<madsrdf:componentList rdf:parseType="Collection" xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh85123962"/>
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh2002007921"/>
+	  <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh00006099"/>
+	</madsrdf:componentList>
+	<bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">socialindicatorsmathematicalmodelsmoralandethicalaspects</bflc:aap-normalized>
+	<bf:source rdf:resource="http://id.loc.gov/authorities/subjects"/>
+      </bf:Topic>
+    </bf:subject>
+    <bf:subject rdf:resource="http://id.loc.gov/authorities/subjects/sh2008102152"/>
+    <bf:subject rdf:resource="http://id.loc.gov/authorities/subjects/sh2009100039"/>
+    <dcterms:isPartOf rdf:resource="http://id.loc.gov/resources/works" xmlns:dcterms="http://purl.org/dc/terms/"/>
+    <bf:relation>
+      <bf:Relation>
+	<bf:relationship rdf:resource="http://id.loc.gov/vocabulary/relationship/otherphysicalformat"/>
+	<bf:relationship rdf:resource="http://id.loc.gov/entities/relationships/onlineversion"/>
+	<bf:associatedResource rdf:resource="http://id.loc.gov/resources/works/19044863"/>
+      </bf:Relation>
+    </bf:relation>
+    <bf:hasInstance rdf:resource="http://id.loc.gov/resources/instances/19016283"/>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/n"/>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2016-03-15</bf:date>
+	<bf:agent rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/c"/>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2019-05-16T11:05:36</bf:date>
+	<bf:descriptionModifier rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/c"/>
+	<bf:agent rdf:resource="http://id.loc.gov/vocabulary/organizations/dlcmrc"/>
+	<bf:generationProcess rdf:resource="https://github.com/lcnetdev/marc2bibframe2/releases/tag/v2.7.0"/>
+	<bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2024-08-03T15:19:09.987793-04:00</bf:date>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+    <bf:adminMetadata>
+      <bf:AdminMetadata>
+	<bf:descriptionLevel rdf:resource="http://id.loc.gov/ontologies/bibframe-2-3-0/"/>
+	<bflc:encodingLevel rdf:resource="http://id.loc.gov/vocabulary/menclvl/f" xmlns:bflc="http://id.loc.gov/ontologies/bflc/"/>
+	<bf:descriptionConventions rdf:resource="http://id.loc.gov/vocabulary/descriptionConventions/isbd"/>
+	<bf:identifiedBy>
+	  <bf:Local>
+	    <rdf:value>19016283</rdf:value>
+	    <bf:assigner rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+	  </bf:Local>
+	</bf:identifiedBy>
+	<lclocal:d906 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=906     $a 7 $b cbc $c orignew $d 1 $e ecip $f 20 $g y-gencatlg</lclocal:d906>
+	<lclocal:d925 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=925  0  $a Acquire $b 1 shelf copy $x Sel/ddw, 2016-09-26</lclocal:d925>
+	<lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $b rk14 2016-03-15 $c rk14 2016-03-15 telework to subj $d re23 2016-04-04 (telework) to Dewey $w xm09 2016-04-05 $a xn05 2016-09-21 1 copy rec'd., to CIP ver. $f rk05 2016-10-07 to CALM (telework)  x-copy/discard to CALM $a hh12 2019-04-12 Copy On Order for Loan $a hh12 2019-05-16 Book picked up by C. Townsend, 4/22/2019</lclocal:d955>
+	<bf:descriptionLanguage rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+	<bf:descriptionConventions rdf:resource="http://id.loc.gov/vocabulary/descriptionConventions/rda"/>
+	<bf:descriptionAuthentication rdf:resource="http://id.loc.gov/vocabulary/marcauthen/pcc"/>
+      </bf:AdminMetadata>
+    </bf:adminMetadata>
+  </bf:Work>
+</rdf:RDF>
+#+end_src
+
+** Creating BIBFRAME work and instance in Alma
+Before posting something to Alma, we initiate a session. With that, all requests to the Alma API can share the same parameters (API-Key etc.). It's much faster for multiple calls, too.
+#+begin_src python :session python
+# session for API calls to Alma
+session_alma = requests.Session()
+session_alma.headers.update({
+    "accept": "application/xml",
+    "content-type": "application/xml",
+    "validate": "false",
+    "authorization": f"apikey {API_KEY}"
+})
+#+end_src
+
+Now we prepare the payload and post it to Alma:
+#+begin_src python :session python
+prepd_work = prep_rec(work_xml)
+work_post_resp = session_alma.post(bib_api.format(mms_id=""), data=prepd_work)
+#+end_src
+
+Let's look at the result:
+#+begin_src python :session python
+work_post_resp.text
+#+end_src
+
+#+begin_src xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<bib>
+  <mms_id>97148831599003331</mms_id>
+  <record_format>lc_bf_work</record_format>
+  <linked_record_id/>
+  <title>Weapons of math destruction</title>
+  <author>O'Neil, Cathy</author>
+  <holdings link="https://api-eu.hosted.exlibrisgroup.com/almaws/v1/bibs/97148831599003331/holdings"/>
+  <created_by>API, development_PSB-OBV_rw</created_by>
+  <created_date>2025-03-27Z</created_date>
+  <last_modified_by>API, development_PSB-OBV_rw</last_modified_by>
+  <last_modified_date>2025-03-27Z</last_modified_date>
+  <suppress_from_publishing>true</suppress_from_publishing>
+  <suppress_from_external_search>false</suppress_from_external_search>
+  <suppress_from_metadoor>false</suppress_from_metadoor>
+  <sync_with_oclc>NONE</sync_with_oclc>
+  <sync_with_libraries_australia>NONE</sync_with_libraries_australia>
+  <originating_system>43ACC_NETWORK</originating_system>
+  <originating_system_id>19016283</originating_system_id>
+  <brief_level desc="10">10</brief_level>
+  <record>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+      <bf:Work xmlns:bf="http://id.loc.gov/ontologies/bibframe/" rdf:about="http://id.loc.gov/resources/works/19016283">
+        <bflc:aap xmlns:bflc="http://id.loc.gov/ontologies/bflc/">O'Neil, Cathy Weapons of math destruction</bflc:aap>
+        <bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">o'neilcathyweaponsofmathdestruction</bflc:aap-normalized>
+        <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Text"/>
+        <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/Monograph"/>
+        <bf:language rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+        <bf:supplementaryContent rdf:resource="http://id.loc.gov/vocabulary/msupplcont/bibliography"/>
+        <bf:supplementaryContent rdf:resource="http://id.loc.gov/vocabulary/msupplcont/index"/>
+        <bf:geographicCoverage rdf:resource="http://id.loc.gov/vocabulary/geographicAreas/n-us"/>
+        <bf:classification>
+          <bf:ClassificationLcc>
+            <bf:classificationPortion>QA76.9.B45</bf:classificationPortion>
+            <bf:itemPortion>O64 2016</bf:itemPortion>
+            <bf:assigner rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+            <bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/uba"/>
+          </bf:ClassificationLcc>
+        </bf:classification>
+        <bf:classification>
+          <bf:ClassificationDdc>
+            <bf:classificationPortion>005.7</bf:classificationPortion>
+            <bf:source>
+              <bf:Source>
+                <bf:code>23</bf:code>
+              </bf:Source>
+            </bf:source>
+            <bf:edition>full</bf:edition>
+            <bf:assigner rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+          </bf:ClassificationDdc>
+        </bf:classification>
+        <bf:contribution>
+          <bf:Contribution>
+            <rdf:type rdf:resource="http://id.loc.gov/ontologies/bibframe/PrimaryContribution"/>
+            <bf:agent rdf:resource="http://id.loc.gov/rwo/agents/no2013123474"/>
+            <bf:role rdf:resource="http://id.loc.gov/vocabulary/relators/aut"/>
+          </bf:Contribution>
+        </bf:contribution>
+        <bf:title>
+          <bf:Title>
+            <bf:mainTitle>Weapons of math destruction</bf:mainTitle>
+          </bf:Title>
+        </bf:title>
+        <bf:content rdf:resource="http://id.loc.gov/vocabulary/contentTypes/txt"/>
+        <bf:subject>
+          <bf:Topic>
+            <rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+            <rdfs:label xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">Big data--Social aspects--United States</rdfs:label>
+            <madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Big data--Social aspects--United States</madsrdf:authoritativeLabel>
+            <madsrdf:isMemberOfMADSScheme xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" rdf:resource="http://id.loc.gov/authorities/subjects"/>
+            <madsrdf:componentList xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" rdf:parseType="Collection">
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh2012003227"/>
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh00002758"/>
+              <madsrdf:Geographic rdf:about="http://id.loc.gov/rwo/agents/n78095330-781"/>
+            </madsrdf:componentList>
+            <bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">bigdatasocialaspectsunitedstates</bflc:aap-normalized>
+            <bf:source rdf:resource="http://id.loc.gov/authorities/subjects"/>
+          </bf:Topic>
+        </bf:subject>
+        <bf:subject>
+          <bf:Topic>
+            <rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+            <rdfs:label xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">Big data--Political aspects--United States</rdfs:label>
+            <madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Big data--Political aspects--United States</madsrdf:authoritativeLabel>
+            <madsrdf:isMemberOfMADSScheme xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" rdf:resource="http://id.loc.gov/authorities/subjects"/>
+            <madsrdf:componentList xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" rdf:parseType="Collection">
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh2012003227"/>
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh00005651"/>
+              <madsrdf:Geographic rdf:about="http://id.loc.gov/rwo/agents/n78095330-781"/>
+            </madsrdf:componentList>
+            <bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">bigdatapoliticalaspectsunitedstates</bflc:aap-normalized>
+            <bf:source rdf:resource="http://id.loc.gov/authorities/subjects"/>
+          </bf:Topic>
+        </bf:subject>
+        <bf:subject>
+          <bf:Topic>
+            <rdf:type rdf:resource="http://www.loc.gov/mads/rdf/v1#ComplexSubject"/>
+            <rdfs:label xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">Social indicators--Mathematical models--Moral and ethical aspects</rdfs:label>
+            <madsrdf:authoritativeLabel xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#">Social indicators--Mathematical models--Moral and ethical aspects</madsrdf:authoritativeLabel>
+            <madsrdf:isMemberOfMADSScheme xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" rdf:resource="http://id.loc.gov/authorities/subjects"/>
+            <madsrdf:componentList xmlns:madsrdf="http://www.loc.gov/mads/rdf/v1#" rdf:parseType="Collection">
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh85123962"/>
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh2002007921"/>
+              <madsrdf:Topic rdf:about="http://id.loc.gov/authorities/subjects/sh00006099"/>
+            </madsrdf:componentList>
+            <bflc:aap-normalized xmlns:bflc="http://id.loc.gov/ontologies/bflc/">socialindicatorsmathematicalmodelsmoralandethicalaspects</bflc:aap-normalized>
+            <bf:source rdf:resource="http://id.loc.gov/authorities/subjects"/>
+          </bf:Topic>
+        </bf:subject>
+        <bf:subject rdf:resource="http://id.loc.gov/authorities/subjects/sh2008102152"/>
+        <bf:subject rdf:resource="http://id.loc.gov/authorities/subjects/sh2009100039"/>
+        <dcterms:isPartOf xmlns:dcterms="http://purl.org/dc/terms/" rdf:resource="http://id.loc.gov/resources/works"/>
+        <bf:relation>
+          <bf:Relation>
+            <bf:relationship rdf:resource="http://id.loc.gov/vocabulary/relationship/otherphysicalformat"/>
+            <bf:relationship rdf:resource="http://id.loc.gov/entities/relationships/onlineversion"/>
+            <bf:associatedResource rdf:resource="http://id.loc.gov/resources/works/19044863"/>
+          </bf:Relation>
+        </bf:relation>
+        <bf:hasInstance rdf:resource="http://id.loc.gov/resources/instances/19016283"/>
+        <bf:adminMetadata>
+          <bf:AdminMetadata>
+            <bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/n"/>
+            <bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2016-03-15</bf:date>
+            <bf:agent rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+          </bf:AdminMetadata>
+        </bf:adminMetadata>
+        <bf:adminMetadata>
+          <bf:AdminMetadata>
+            <bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/c"/>
+            <bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2019-05-16T11:05:36</bf:date>
+            <bf:descriptionModifier rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+          </bf:AdminMetadata>
+        </bf:adminMetadata>
+        <bf:adminMetadata>
+          <bf:AdminMetadata>
+            <bf:status rdf:resource="http://id.loc.gov/vocabulary/mstatus/c"/>
+            <bf:agent rdf:resource="http://id.loc.gov/vocabulary/organizations/dlcmrc"/>
+            <bf:generationProcess rdf:resource="https://github.com/lcnetdev/marc2bibframe2/releases/tag/v2.7.0"/>
+            <bf:date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2024-08-03T15:19:09.987793-04:00</bf:date>
+          </bf:AdminMetadata>
+        </bf:adminMetadata>
+        <bf:adminMetadata>
+          <bf:AdminMetadata>
+            <bf:descriptionLevel rdf:resource="http://id.loc.gov/ontologies/bibframe-2-3-0/"/>
+            <bflc:encodingLevel xmlns:bflc="http://id.loc.gov/ontologies/bflc/" rdf:resource="http://id.loc.gov/vocabulary/menclvl/f"/>
+            <bf:descriptionConventions rdf:resource="http://id.loc.gov/vocabulary/descriptionConventions/isbd"/>
+            <bf:identifiedBy>
+              <bf:Local>
+                <rdf:value>19016283</rdf:value>
+                <bf:assigner rdf:resource="http://id.loc.gov/vocabulary/organizations/dlc"/>
+              </bf:Local>
+            </bf:identifiedBy>
+            <lclocal:d906 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=906     $a 7 $b cbc $c orignew $d 1 $e ecip $f 20 $g y-gencatlg</lclocal:d906>
+            <lclocal:d925 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=925  0  $a Acquire $b 1 shelf copy $x Sel/ddw, 2016-09-26</lclocal:d925>
+            <lclocal:d955 xmlns:lclocal="http://id.loc.gov/ontologies/lclocal/">=955     $b rk14 2016-03-15 $c rk14 2016-03-15 telework to subj $d re23 2016-04-04 (telework) to Dewey $w xm09 2016-04-05 $a xn05 2016-09-21 1 copy rec'd., to CIP ver. $f rk05 2016-10-07 to CALM (telework)  x-copy/discard to CALM $a hh12 2019-04-12 Copy On Order for Loan $a hh12 2019-05-16 Book picked up by C. Townsend, 4/22/2019</lclocal:d955>
+            <bf:descriptionLanguage rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+            <bf:descriptionConventions rdf:resource="http://id.loc.gov/vocabulary/descriptionConventions/rda"/>
+            <bf:descriptionAuthentication rdf:resource="http://id.loc.gov/vocabulary/marcauthen/pcc"/>
+          </bf:AdminMetadata>
+        </bf:adminMetadata>
+        <bf:sameAs rdf:about="https://eu02.alma.exlibrisgroup.com/bf/works/97148831599003331?env=sandbox"/>
+        <bf:adminMetadata>
+          <bf:AdminMetadata>
+            <bf:identifiedBy>
+              <bf:Local>
+                <rdf:value>97148831599003331</rdf:value>
+              </bf:Local>
+              <bf:source>ALMA</bf:source>
+            </bf:identifiedBy>
+          </bf:AdminMetadata>
+        </bf:adminMetadata>
+      </bf:Work>
+    </rdf:RDF>
+  </record>
+</bib>
+#+end_src
+
+** Parsing the responses from Alma for further processing
+That worked! Maybe we want to do something with the Data. To be able to do that, we parse the response into an XML tree, so we can get information (for example the MMS-ID) out of it or manipulate the data.
+#+begin_src python :session python :exports both
+res_tree = ET.fromstring(work_post_resp.text)
+work_mms = res_tree.find('mms_id')
+
+work_mms.text
+#+end_src
+
+#+RESULTS:
+: 97148830299403331
+
+Note that, while not obvious in this case, the argument to =find= is an XPath-expression.
+
+Now, let's do that with the instance:
+#+begin_src python :session python :exports both
+instance_post_resp = session_alma.post(bib_api.format(mms_id=""), data=prep_rec(instance_xml))
+instance_mms = ET.fromstring(instance_post_resp.text).find('mms_id')
+
+instance_mms.text
+#+end_src
+
+#+RESULTS:
+: 99148830299303331
+** TODO Update :noexport:
+*DISCLAIMER:* This section does not yield the intended results yet.
+
+We want to make a change to our BIBFRAME-work and put it into Alma again. For simplicities sake, we just change the text of an existing element:
+
+#+begin_src python :session python
+# change the title
+res_tree.find('record//bf:title/bf:Title/bf:mainTitle', NS).text = "CHANGED TITLE"
+#+end_src
+
+To get the changed record back into Alma, we need to make a PUT request with the changed record as payload:
+#+begin_src python :session python
+changed_work_put_resp = session_alma.put(bib_api.format(mms_id=work_mms.text),
+                                         data=ET.tostring(res_tree))
+#+end_src
+
+** Deleting the records again
+Now, let's delete the records, so we don't have to look for new examples every time this runs.
+
+Note that when one tries to delete the work before the instance, this will fail:
+#+begin_src python :session python
+work_del_res = session_alma.delete(bib_api.format(mms_id=work_mms.text))
+work_del_res.text
+#+end_src
+
+#+begin_src xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<web_service_result xmlns="http://com/exlibris/urm/general/xmlbeans">
+  <errorsExist>true</errorsExist>
+  <errorList>
+    <error>
+      <errorCode>10109</errorCode>
+      <errorMessage>Work associated with an instance cannot be deleted.</errorMessage>
+      <trackingId>E01-1102165359-2MLXS-AWAE273450733</trackingId>
+    </error>
+  </errorList>
+</web_service_result>
+#+end_src
+
+So we delete the instance first:
+#+begin_src python :session python :exports both
+instance_del_res = session_alma.delete(bib_api.format(mms_id=instance_mms.text))
+instance_del_res.status_code
+#+end_src
+
+#+RESULTS:
+: 204
+
+As expected, Alma returns =HTTP 204=, now for the work.
+#+begin_src python :session python :exports both
+work_del_res = session_alma.delete(bib_api.format(mms_id=work_mms.text))
+work_del_res.status_code
+#+end_src
+
+#+RESULTS:
+: 204
+
+All good!
+* Simple CLI for importing multiple records
+Here is a simple script which allows one to specify multiple identifiers on the command line to load into Alma. The invocation would be like this:
+
+#+begin_src bash
+(.venv)$ python3 bfloc2alma.py 19016283 12983234
+#+end_src
+** Imports
+We import the usual suspects and our config and library code. It is assumed that your API key is stored in an environment variable =API_KEY=. The =argparse= library is used to create a simple command line interface.
+
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+#!/usr/bin/env python3
+
+import argparse
+from sys import exit
+
+import requests
+
+from config import *
+from lib import *
+
+#+end_src
+
+** Argument parsing
+We want to be able to give the IDs on the command line, so we use =argparse= to make a CLI.
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+parser = argparse.ArgumentParser()
+parser.add_argument("loc_ids",
+                    nargs="+",
+                    help="The LoC-IDs to be imported into Alma")
+parser.add_argument("-c",
+                    "--cleanup",
+                    help="Delete created records afterwards",
+                    action="store_true")
+
+args = parser.parse_args()
+#+end_src
+
+This is not only useful to get command line arguments, but gives us a nice help message too:
+
+#+begin_src shell :tangle no
+$ ./bfloc2alma.py -h
+
+usage: bfloc2alma.py [-h] [-c] loc_ids [loc_ids ...]
+
+positional arguments:
+  loc_ids        The LoC-IDs to be imported into Alma
+
+options:
+  -h, --help     show this help message and exit
+  -c, --cleanup  Delete created records afterwards
+
+#+end_src
+
+** Getting data from LoC
+Then we set up the session for posting to Alma:
+
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+
+session = requests.Session()
+session.headers.update(ALMA_SESSION_HEADERS)
+
+#+end_src
+
+We could set up another session for getting the records from LoC and pass it to =get_bibframe_from_loc=, but it's not necessary.
+
+Now, we are ready to get BIBFRAME from the LoC. To keep it simple, we put works and instances in the same list. =get_bibframe_from_loc()= returns the XML-String of the BIBFRAME work or instance. So, =loc_bf= will be a list of strings in the end.
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+# get the records from loc
+loc_bf = []
+for loc_id in args.loc_ids:
+    print(f"Getting bf work from loc: {loc_id}")
+    bf_work = get_bibframe_from_loc(loc_id, "work")
+    loc_bf.append(bf_work)
+    print(f"Getting bf instance from loc: {loc_id}")
+    bf_instance = get_bibframe_from_loc(loc_id, "instance")
+    loc_bf.append(bf_instance)
+
+#+end_src
+
+** Importing into Alma
+Before beginning to put things into Alma, we initialize a list in which to put the MMS-IDs of the records. We will use this list to clean up afterwards, so we can use the same records multiple times for testing purposes.
+
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+# lists for the MMS-IDs for later use
+mmsids = []
+
+#+end_src
+
+To post the BIBFRAME works and instances to Alma, we iterate over the list of XML-strings we got earlier.
+
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+## prepare the XML and import it into alma
+
+for bf in loc_bf:
+    post_res = session.post(bib_api.format(mms_id=""),
+                 prep_rec(bf))
+
+    # blow up if HTTP error
+    try:
+        post_res.raise_for_status()
+    except Exception as error:
+        print(post_res.text)
+        continue
+
+    mms = get_mmsid(post_res)
+    mmsids.append(mms)
+    entity = "work" if mms.startswith("97") else "instance"
+    print(f"Imported {entity}: {mms}")
+
+#+end_src
+
+
+** Cleanup after test runs
+For test runs, we want to delete the records again. This is controlled by the =--cleanup= flag on the command line. Work cannot be deleted if they have instances, so we need to reverse the list of MMS-IDs before iterating oder it.
+
+#+begin_src python :tangle bfloc2alma/bfloc2alma.py
+if args.cleanup:
+    # iterate over reversed list, so to delete the instances first
+    mmsids.reverse()
+    for mmsid in mmsids:
+        print(f"deleting {mmsid}")
+        del_res = session.delete(bib_api.format(mms_id=mmsid))
+        print(f"   {del_res.status_code}")
+#+end_src
+** Example execution
+You can run the script with =python3 bfloc2alma.py 19016283 12983234 --cleanup=. As we have added a shebang line, you can make the file executable on MacOS or Linux:
+
+#+begin_src bash :exports code
+$ chmod +x bfloc2alma.py
+#+end_src
+
+After that you can run it like this:
+
+#+begin_src bash :exports code
+./bfloc2alma.py 19016283 12983234 -c
+Getting bf work from loc: 19016283
+Getting bf instance from loc: 19016283
+Getting bf work from loc: 12983234
+Getting bf instance from loc: 12983234
+Imported work: 97148831596703331
+Imported instance: 99148831596603331
+Imported work: 97148831596503331
+Imported instance: 99148831596403331
+deleting 99148831596403331
+   204
+deleting 97148831596503331
+   204
+deleting 99148831596603331
+   204
+deleting 97148831596703331
+   204
+
+#+end_src
