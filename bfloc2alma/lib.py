@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 import requests
 
 # our configuration
-# from config import *
+# from bfloc2alma.config import NS
 
 # get BIBFRAME from LoC
 def get_bibframe_from_loc(loc_id, entity="work", compact=True, as_tree=False, session=None):
@@ -40,7 +40,7 @@ def prep_rec(bf_rec):
       </record>
     </bib>
     """
-
+    NS = {"bf": "http://id.loc.gov/ontologies/bibframe/"}
     # bf_rec needs to be an ET.Element to be handled further
     if type(bf_rec) == str:
         bf_rec = ET.fromstring(bf_rec)
@@ -48,9 +48,9 @@ def prep_rec(bf_rec):
         raise Error("bf_rec must be str or ET.Element!")
 
     # check which entity we have
-    if bf_rec.find('bf:Work', {"bf": "http://id.loc.gov/ontologies/bibframe/"}) is not None:
+    if bf_rec.find('bf:Work', NS) is not None:
         entity = "work"
-    elif bf_rec.find('bf:Instance', {"bf": "http://id.loc.gov/ontologies/bibframe/"}) is not None:
+    elif bf_rec.find('bf:Instance', NS) is not None:
         entity = "instance"
     else:
         raise Exception("Input is neither a work nor an instance!")

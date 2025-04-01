@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2025-03-31 Mo 09:59 -->
+<!-- 2025-04-01 Di 09:16 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Alma API BIBFRAME</title>
@@ -222,57 +222,57 @@ org_html_manager.setup();  // activate after the parameters are set
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#org270ea68">1. About this tutorial</a></li>
-<li><a href="#org2c8619b">2. System requirements</a>
+<li><a href="#org5efdfae">1. About this tutorial</a></li>
+<li><a href="#org7671290">2. System requirements</a>
 <ul>
-<li><a href="#orge6a29d9">2.1. Virtual environment and third party libraries</a></li>
-<li><a href="#orgbfc4041">2.2. API Key</a></li>
+<li><a href="#orgfa8b272">2.1. Virtual environment and third party libraries</a></li>
+<li><a href="#org4c24535">2.2. API Key</a></li>
 </ul>
 </li>
-<li><a href="#org2c5c439">3. Library code</a>
+<li><a href="#orgfd5ce3c">3. Library code</a>
 <ul>
-<li><a href="#orgf413b4c">3.1. Configuration</a>
+<li><a href="#orgf0b40ea">3.1. Configuration</a>
 <ul>
-<li><a href="#org50082a3">3.1.1. XML-Namespaces</a></li>
-<li><a href="#orgb1cb304">3.1.2. API-Key</a></li>
-<li><a href="#orge61ecb6">3.1.3. API URL</a></li>
-<li><a href="#org3d07f72">3.1.4. Session headers</a></li>
-<li><a href="#org971b687">3.1.5. Put together config.py</a></li>
+<li><a href="#org18f6350">3.1.1. XML-Namespaces</a></li>
+<li><a href="#org9b7d362">3.1.2. API-Key</a></li>
+<li><a href="#org9c871bb">3.1.3. API URL</a></li>
+<li><a href="#orgf6b45cc">3.1.4. Session headers</a></li>
+<li><a href="#org8f2f7dc">3.1.5. Put together config.py</a></li>
 </ul>
 </li>
-<li><a href="#orge676f90">3.2. Functions</a>
+<li><a href="#org0459abe">3.2. Functions</a>
 <ul>
-<li><a href="#orgca715a3">3.2.1. Imports</a></li>
-<li><a href="#orgf7635d0">3.2.2. Getting data from LoC</a></li>
-<li><a href="#org77fcdb3">3.2.3. Prepare BIBFRAME record for the Alma API</a></li>
-<li><a href="#org55e2a02">3.2.4. Helpers</a></li>
+<li><a href="#org2c4a1e7">3.2.1. Imports</a></li>
+<li><a href="#org8a4c5e5">3.2.2. Getting data from LoC</a></li>
+<li><a href="#orgf0a332f">3.2.3. Prepare BIBFRAME record for the Alma API</a></li>
+<li><a href="#org973bc18">3.2.4. Helpers</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#orgd357578">4. Walkthrough with one Example</a>
+<li><a href="#org047ed28">4. Walkthrough with one Example</a>
 <ul>
-<li><a href="#org29d02d7">4.1. Geting the data from LoC</a></li>
-<li><a href="#org0cffb8a">4.2. Creating BIBFRAME work and instance in Alma</a></li>
-<li><a href="#orgc299e17">4.3. Parsing the responses from Alma for further processing</a></li>
-<li><a href="#org9f8f382">4.4. Deleting the records again</a></li>
+<li><a href="#org9b07c86">4.1. Geting the data from LoC</a></li>
+<li><a href="#org2988ae3">4.2. Creating BIBFRAME work and instance in Alma</a></li>
+<li><a href="#org3d3c28b">4.3. Parsing the responses from Alma for further processing</a></li>
+<li><a href="#org6a801b9">4.4. Deleting the records again</a></li>
 </ul>
 </li>
-<li><a href="#org750b735">5. Simple CLI for importing multiple records</a>
+<li><a href="#org02a2456">5. Simple CLI for importing multiple records</a>
 <ul>
-<li><a href="#org3268db6">5.1. Imports</a></li>
-<li><a href="#org11be9fb">5.2. Argument parsing</a></li>
-<li><a href="#orgcf14d5e">5.3. Getting data from LoC</a></li>
-<li><a href="#org8a50c2c">5.4. Importing into Alma</a></li>
-<li><a href="#org1f67e09">5.5. Cleanup after test runs</a></li>
-<li><a href="#org9f08f8f">5.6. Example execution</a></li>
+<li><a href="#org7388326">5.1. Imports</a></li>
+<li><a href="#org89480e1">5.2. Argument parsing</a></li>
+<li><a href="#org9fa3d35">5.3. Getting data from LoC</a></li>
+<li><a href="#orge52aa7f">5.4. Importing into Alma</a></li>
+<li><a href="#org5507e51">5.5. Cleanup after test runs</a></li>
+<li><a href="#org3d8dfd0">5.6. Example execution</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
-<div id="outline-container-org270ea68" class="outline-2">
-<h2 id="org270ea68"><span class="section-number-2">1.</span> About this tutorial</h2>
+<div id="outline-container-org5efdfae" class="outline-2">
+<h2 id="org5efdfae"><span class="section-number-2">1.</span> About this tutorial</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 This tutorial is about importing BIBFRAME from LoC into Alma. It&rsquo;s goal is to give you a starting point for writing your own scripts fitting your usecase. It assumes some familiarity with python or another scripting language.
@@ -287,7 +287,7 @@ I will make videos discussing the parts of it and add links to them here.
 </p>
 
 <p>
-If you spot any errors, please report them to me: stefan.schuh@obvsg.at
+If you spot any errors, please report them to me: <a href="mailto:stefan.schuh@obvsg.at">stefan.schuh@obvsg.at</a>
 </p>
 
 <p>
@@ -295,8 +295,8 @@ English is not my native language, so I gladly take grammar corrections and styl
 </p>
 </div>
 </div>
-<div id="outline-container-org2c8619b" class="outline-2">
-<h2 id="org2c8619b"><span class="section-number-2">2.</span> System requirements</h2>
+<div id="outline-container-org7671290" class="outline-2">
+<h2 id="org7671290"><span class="section-number-2">2.</span> System requirements</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 This tutorial was developed and tested on Fedora Linux 41 with Python 3.13.1. There is nothing OS-specific here, so it should work without problems on Mac and Windows as well. As soon as I get access to a Windows machine, I will try it there.
@@ -310,15 +310,15 @@ On most Linux distributions Python comes preinstalled. You will have to install 
 Note, that the invocations of the Python interpreter may vary a bit on your system. It&rsquo;s <code>python3</code> for me, but could also be just <code>python</code>, <code>python.exe</code> (on Windows) or similar.
 </p>
 </div>
-<div id="outline-container-orge6a29d9" class="outline-3">
-<h3 id="orge6a29d9"><span class="section-number-3">2.1.</span> Virtual environment and third party libraries</h3>
+<div id="outline-container-orgfa8b272" class="outline-3">
+<h3 id="orgfa8b272"><span class="section-number-3">2.1.</span> Virtual environment and third party libraries</h3>
 <div class="outline-text-3" id="text-2-1">
 <p>
 I don&rsquo;t install any Python libraries outside of virtual environments, so I don&rsquo;t mess up my system. If you are not concerned about that, you can skip that and jump ahead to <code>pip install ...</code>
 </p>
 
 <div class="org-src-container">
-<pre class="src src-shell">$ python3 -m virualenv .venv
+<pre class="src src-shell" id="org2977b93">$ python3 -m virualenv .venv
 $ source .venv/bin/activate
 </pre>
 </div>
@@ -332,7 +332,7 @@ Once you have done that, you have to install the only dependency:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-shell"><span style="color: #268bd2;">(</span>.venv<span style="color: #268bd2;">)</span>$ pip install requests
+<pre class="src src-shell" id="orgd9d193a"><span style="color: #268bd2;">(</span>.venv<span style="color: #268bd2;">)</span>$ pip install requests
 </pre>
 </div>
 
@@ -341,8 +341,8 @@ If you are done you can deactivate the environment by typing <code>deactivate</c
 </p>
 </div>
 </div>
-<div id="outline-container-orgbfc4041" class="outline-3">
-<h3 id="orgbfc4041"><span class="section-number-3">2.2.</span> API Key</h3>
+<div id="outline-container-org4c24535" class="outline-3">
+<h3 id="org4c24535"><span class="section-number-3">2.2.</span> API Key</h3>
 <div class="outline-text-3" id="text-2-2">
 <p>
 To follow along, you need an API key with read/write permissions, preferably for a sandbox environment.
@@ -353,7 +353,7 @@ I assume that you have the API key in an environment variable. In bash like shel
 </p>
 
 <div class="org-src-container">
-<pre class="src src-shell">$ export <span style="color: #6c71c4;">API_KEY_PSB</span>=paste-api-key-here
+<pre class="src src-shell" id="org7e1154a">$ export <span style="color: #6c71c4;">API_KEY_PSB</span>=paste-api-key-here
 </pre>
 </div>
 
@@ -363,26 +363,26 @@ YMMV on Windows. You can put it in the <code>config.py</code> file, if you absol
 </div>
 </div>
 </div>
-<div id="outline-container-org2c5c439" class="outline-2">
-<h2 id="org2c5c439"><span class="section-number-2">3.</span> Library code</h2>
+<div id="outline-container-orgfd5ce3c" class="outline-2">
+<h2 id="orgfd5ce3c"><span class="section-number-2">3.</span> Library code</h2>
 <div class="outline-text-2" id="text-3">
 </div>
-<div id="outline-container-orgf413b4c" class="outline-3">
-<h3 id="orgf413b4c"><span class="section-number-3">3.1.</span> Configuration</h3>
+<div id="outline-container-orgf0b40ea" class="outline-3">
+<h3 id="orgf0b40ea"><span class="section-number-3">3.1.</span> Configuration</h3>
 <div class="outline-text-3" id="text-3-1">
 <p>
 Our configuration will reside in it&rsquo;s own file, so our script isn&rsquo;t cluttered with constant definitions.
 </p>
 </div>
-<div id="outline-container-org50082a3" class="outline-4">
-<h4 id="org50082a3"><span class="section-number-4">3.1.1.</span> XML-Namespaces</h4>
+<div id="outline-container-org18f6350" class="outline-4">
+<h4 id="org18f6350"><span class="section-number-4">3.1.1.</span> XML-Namespaces</h4>
 <div class="outline-text-4" id="text-3-1-1">
 <p>
 XML-Namespaces that occur in BIBFRAME documents. This is to have prettier output (<code>bf</code> instead of <code>ns1</code> prefixes etc.) and also needed for XPath (<code>ET.find()</code> etc.).
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="org1912bfe"><span style="color: #6c71c4;">NS</span> = {
+<pre class="src src-python" id="orgb6b1520"><span style="color: #6c71c4;">NS</span> = {
     <span style="color: #2aa198;">"bf"</span>: <span style="color: #2aa198;">"http://id.loc.gov/ontologies/bibframe/"</span>,
     <span style="color: #2aa198;">"bflc"</span>: <span style="color: #2aa198;">"http://id.loc.gov/ontologies/bflc/"</span>,
     <span style="color: #2aa198;">"rdf"</span>: <span style="color: #2aa198;">"http://www.w3.org/1999/02/22-rdf-syntax-ns#"</span>,
@@ -399,42 +399,42 @@ XML-Namespaces that occur in BIBFRAME documents. This is to have prettier output
 </div>
 </div>
 </div>
-<div id="outline-container-orgb1cb304" class="outline-4">
-<h4 id="orgb1cb304"><span class="section-number-4">3.1.2.</span> API-Key</h4>
+<div id="outline-container-org9b7d362" class="outline-4">
+<h4 id="org9b7d362"><span class="section-number-4">3.1.2.</span> API-Key</h4>
 <div class="outline-text-4" id="text-3-1-2">
 <p>
 You should never store any secrets in source files. You WILL eventually overlook it and publish it on GitHub. So we get it from an environment variable.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="org73252c1"><span style="color: #6c71c4;">API_KEY</span> = os.environ.get(<span style="color: #2aa198;">"API_KEY_PSB"</span>) <span style="color: #859900; font-weight: bold;">or</span> <span style="color: #2aa198;">"put-your-key-here-if-you-absolutely-must"</span>
+<pre class="src src-python" id="org6067405"><span style="color: #6c71c4;">API_KEY</span> = os.environ.get(<span style="color: #2aa198;">"API_KEY_PSB"</span>) <span style="color: #859900; font-weight: bold;">or</span> <span style="color: #2aa198;">"put-your-key-here-if-you-absolutely-must"</span>
 </pre>
 </div>
 </div>
 </div>
-<div id="outline-container-orge61ecb6" class="outline-4">
-<h4 id="orge61ecb6"><span class="section-number-4">3.1.3.</span> API URL</h4>
+<div id="outline-container-org9c871bb" class="outline-4">
+<h4 id="org9c871bb"><span class="section-number-4">3.1.3.</span> API URL</h4>
 <div class="outline-text-4" id="text-3-1-3">
 <p>
-Put the base URL of your Alma API Endpoint here. As I am in Austria, it&rsquo;s the one for Europe. As I&rsquo;m on it, I create a template for the bib API, so I can put the MMSID in it to get a full API-URL.
+Put the base URL of your Alma API Endpoint here. As I am in Austria, it&rsquo;s the one for Europe. As I&rsquo;m on it, I create a template for the bib API, so I only need to fill in the MMSID to get a full API-URL.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="org2083d6b"><span style="color: #6c71c4;">BASE_URL</span> = <span style="color: #2aa198;">"https://api-eu.hosted.exlibrisgroup.com/almaws/v1"</span>
+<pre class="src src-python" id="orgef67e2f"><span style="color: #6c71c4;">BASE_URL</span> = <span style="color: #2aa198;">"https://api-eu.hosted.exlibrisgroup.com/almaws/v1"</span>
 <span style="color: #6c71c4;">bib_api</span> = BASE_URL + <span style="color: #2aa198;">"/bibs/{mms_id}"</span>
 </pre>
 </div>
 </div>
 </div>
-<div id="outline-container-org3d07f72" class="outline-4">
-<h4 id="org3d07f72"><span class="section-number-4">3.1.4.</span> Session headers</h4>
+<div id="outline-container-orgf6b45cc" class="outline-4">
+<h4 id="orgf6b45cc"><span class="section-number-4">3.1.4.</span> Session headers</h4>
 <div class="outline-text-4" id="text-3-1-4">
 <p>
 We use a session to make requests against the Alma API. All requests using this session are using the same headers:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="orgad2c9a9"><span style="color: #6c71c4;">ALMA_SESSION_HEADERS</span> = {
+<pre class="src src-python" id="org0b335fc"><span style="color: #6c71c4;">ALMA_SESSION_HEADERS</span> = {
     <span style="color: #2aa198;">"accept"</span>: <span style="color: #2aa198;">"application/xml"</span>,
     <span style="color: #2aa198;">"content-type"</span>: <span style="color: #2aa198;">"application/xml"</span>,
     <span style="color: #2aa198;">"validate"</span>: <span style="color: #2aa198;">"false"</span>,
@@ -444,8 +444,8 @@ We use a session to make requests against the Alma API. All requests using this 
 </div>
 </div>
 </div>
-<div id="outline-container-org971b687" class="outline-4">
-<h4 id="org971b687"><span class="section-number-4">3.1.5.</span> Put together config.py</h4>
+<div id="outline-container-org8f2f7dc" class="outline-4">
+<h4 id="org8f2f7dc"><span class="section-number-4">3.1.5.</span> Put together config.py</h4>
 <div class="outline-text-4" id="text-3-1-5">
 <div class="org-src-container">
 <pre class="src src-python"><span style="color: #859900; font-weight: bold;">import</span> os
@@ -464,9 +464,11 @@ We use a session to make requests against the Alma API. All requests using this 
 <span style="color: #405A61;"># </span><span style="color: #405A61;">register all namespaces for nicer output (no ns1, ns2, ... prefixes)</span>
 <span style="color: #859900; font-weight: bold;">for</span> prfx, uri <span style="color: #859900; font-weight: bold;">in</span> NS.items():
     ET.register_namespace(prfx, uri)
+
 <span style="color: #6c71c4;">API_KEY</span> = os.environ.get(<span style="color: #2aa198;">"API_KEY_PSB"</span>) <span style="color: #859900; font-weight: bold;">or</span> <span style="color: #2aa198;">"put-your-key-here-if-you-absolutely-must"</span>
 <span style="color: #6c71c4;">BASE_URL</span> = <span style="color: #2aa198;">"https://api-eu.hosted.exlibrisgroup.com/almaws/v1"</span>
 <span style="color: #6c71c4;">bib_api</span> = BASE_URL + <span style="color: #2aa198;">"/bibs/{mms_id}"</span>
+
 <span style="color: #6c71c4;">ALMA_SESSION_HEADERS</span> = {
     <span style="color: #2aa198;">"accept"</span>: <span style="color: #2aa198;">"application/xml"</span>,
     <span style="color: #2aa198;">"content-type"</span>: <span style="color: #2aa198;">"application/xml"</span>,
@@ -478,8 +480,8 @@ We use a session to make requests against the Alma API. All requests using this 
 </div>
 </div>
 </div>
-<div id="outline-container-orge676f90" class="outline-3">
-<h3 id="orge676f90"><span class="section-number-3">3.2.</span> Functions</h3>
+<div id="outline-container-org0459abe" class="outline-3">
+<h3 id="org0459abe"><span class="section-number-3">3.2.</span> Functions</h3>
 <div class="outline-text-3" id="text-3-2">
 <p>
 At the end I want to have a CLI program that takes some LoC-IDs, gets the data from there and puts it into Alma and prints out the newly created MMSIDs - so I can delete them again ;-)
@@ -489,11 +491,11 @@ At the end I want to have a CLI program that takes some LoC-IDs, gets the data f
 But first we define some functions and try it with one example, step by step.
 </p>
 </div>
-<div id="outline-container-orgca715a3" class="outline-4">
-<h4 id="orgca715a3"><span class="section-number-4">3.2.1.</span> Imports</h4>
+<div id="outline-container-org2c4a1e7" class="outline-4">
+<h4 id="org2c4a1e7"><span class="section-number-4">3.2.1.</span> Imports</h4>
 <div class="outline-text-4" id="text-3-2-1">
 <p>
-For our main module to work we need to import some libraries.
+For our main module to work we need to import some modules.
 </p>
 
 <ul class="org-ul">
@@ -525,8 +527,8 @@ Comment out the last line if you paste the code into your Python-REPL or Jupyter
 </p>
 </div>
 </div>
-<div id="outline-container-orgf7635d0" class="outline-4">
-<h4 id="orgf7635d0"><span class="section-number-4">3.2.2.</span> Getting data from LoC</h4>
+<div id="outline-container-org8a4c5e5" class="outline-4">
+<h4 id="org8a4c5e5"><span class="section-number-4">3.2.2.</span> Getting data from LoC</h4>
 <div class="outline-text-4" id="text-3-2-2">
 <p>
 We use a function to get records from LoC. The function takes following arguments:
@@ -541,7 +543,7 @@ We use a function to get records from LoC. The function takes following argument
 </ul>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #405A61;"># </span><span style="color: #405A61;">get BIBFRAME from LoC</span>
+<pre class="src src-python" id="orgc250422"><span style="color: #405A61;"># </span><span style="color: #405A61;">get BIBFRAME from LoC</span>
 <span style="color: #859900; font-weight: bold;">def</span> <span style="color: #268bd2;">get_bibframe_from_loc</span>(loc_id, entity=<span style="color: #2aa198;">"work"</span>, compact=<span style="color: #d33682; font-weight: bold;">True</span>, as_tree=<span style="color: #d33682; font-weight: bold;">False</span>, session=<span style="color: #d33682; font-weight: bold;">None</span>):
     <span style="color: #35a69c;">"""Get a BIBFRAME work from LoC. Return the xml of the record.</span>
 
@@ -565,17 +567,21 @@ We use a function to get records from LoC. The function takes following argument
         <span style="color: #859900; font-weight: bold;">return</span> response.text
 </pre>
 </div>
+
+<pre class="example">
+None
+</pre>
 </div>
 </div>
-<div id="outline-container-org77fcdb3" class="outline-4">
-<h4 id="org77fcdb3"><span class="section-number-4">3.2.3.</span> Prepare BIBFRAME record for the Alma API</h4>
+<div id="outline-container-orgf0a332f" class="outline-4">
+<h4 id="orgf0a332f"><span class="section-number-4">3.2.3.</span> Prepare BIBFRAME record for the Alma API</h4>
 <div class="outline-text-4" id="text-3-2-3">
 <p>
 For a BIBFRAME record to be posted to Almas API it has to be wrapped in some XML. It&rsquo;s a bad idea to do this by string manipulation, so we use the <code>xml.etree.ElementTree</code>-API of Python.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #405A61;"># </span><span style="color: #405A61;">prep BIBFRAME record for Alma</span>
+<pre class="src src-python" id="org1ab6aa0"><span style="color: #405A61;"># </span><span style="color: #405A61;">prep BIBFRAME record for Alma</span>
 <span style="color: #859900; font-weight: bold;">def</span> <span style="color: #268bd2;">prep_rec</span>(bf_rec):
     <span style="color: #35a69c;">"""Wrap BIBFRAME to be posted to Almas API.</span>
 
@@ -615,15 +621,15 @@ For a BIBFRAME record to be posted to Almas API it has to be wrapped in some XML
 </div>
 </div>
 </div>
-<div id="outline-container-org55e2a02" class="outline-4">
-<h4 id="org55e2a02"><span class="section-number-4">3.2.4.</span> Helpers</h4>
+<div id="outline-container-org973bc18" class="outline-4">
+<h4 id="org973bc18"><span class="section-number-4">3.2.4.</span> Helpers</h4>
 <div class="outline-text-4" id="text-3-2-4">
 <p>
 A small function to get the MMS-ID from an API response:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="orgad8b23a"><span style="color: #859900; font-weight: bold;">def</span> <span style="color: #268bd2;">get_mmsid</span>(response):
+<pre class="src src-python" id="orga732bd2"><span style="color: #859900; font-weight: bold;">def</span> <span style="color: #268bd2;">get_mmsid</span>(response):
     <span style="color: #35a69c;">"""Get the MMS ID from an Alma API response."""</span>
     <span style="color: #6c71c4;">response_tree</span> = ET.fromstring(response.text)
     <span style="color: #6c71c4;">mms</span> = response_tree.find(<span style="color: #2aa198;">'mms_id'</span>)
@@ -634,8 +640,8 @@ A small function to get the MMS-ID from an API response:
 </div>
 </div>
 </div>
-<div id="outline-container-orgd357578" class="outline-2">
-<h2 id="orgd357578"><span class="section-number-2">4.</span> Walkthrough with one Example</h2>
+<div id="outline-container-org047ed28" class="outline-2">
+<h2 id="org047ed28"><span class="section-number-2">4.</span> Walkthrough with one Example</h2>
 <div class="outline-text-2" id="text-4">
 <p>
 Our Example is &ldquo;Weapons of Math Destruction&rdquo; by Cathy O&rsquo;Neil. The ID is &ldquo;19016283&rdquo;
@@ -645,8 +651,8 @@ Our Example is &ldquo;Weapons of Math Destruction&rdquo; by Cathy O&rsquo;Neil. 
 Another one would be Mary Roach&rsquo;s &ldquo;Stiff&rdquo;, &ldquo;12983234&rdquo;.
 </p>
 </div>
-<div id="outline-container-org29d02d7" class="outline-3">
-<h3 id="org29d02d7"><span class="section-number-3">4.1.</span> Geting the data from LoC</h3>
+<div id="outline-container-org9b07c86" class="outline-3">
+<h3 id="org9b07c86"><span class="section-number-3">4.1.</span> Geting the data from LoC</h3>
 <div class="outline-text-3" id="text-4-1">
 <p>
 So, let&rsquo;s get our work and instance:
@@ -813,11 +819,11 @@ How does it look?
 </div>
 </div>
 </div>
-<div id="outline-container-org0cffb8a" class="outline-3">
-<h3 id="org0cffb8a"><span class="section-number-3">4.2.</span> Creating BIBFRAME work and instance in Alma</h3>
+<div id="outline-container-org2988ae3" class="outline-3">
+<h3 id="org2988ae3"><span class="section-number-3">4.2.</span> Creating BIBFRAME work and instance in Alma</h3>
 <div class="outline-text-3" id="text-4-2">
 <p>
-Before posting something to Alma, we initiate a session. With that, all requests to the Alma API can share the same parameters (API-Key etc.). It&rsquo;s much faster for multiple calls, too.
+Before posting something to Alma, we initiate a session. With that, all requests to the Alma API can share the same parameters (API-Key etc.). It&rsquo;s much faster for multiple calls, too. The headers are the same as in the config above. We could have taken the <code>ALMA_API_HEADERS</code>,
 </p>
 <div class="org-src-container">
 <pre class="src src-python"><span style="color: #405A61;"># </span><span style="color: #405A61;">session for API calls to Alma</span>
@@ -1030,8 +1036,8 @@ Let&rsquo;s look at the result:
 </div>
 </div>
 </div>
-<div id="outline-container-orgc299e17" class="outline-3">
-<h3 id="orgc299e17"><span class="section-number-3">4.3.</span> Parsing the responses from Alma for further processing</h3>
+<div id="outline-container-org3d3c28b" class="outline-3">
+<h3 id="org3d3c28b"><span class="section-number-3">4.3.</span> Parsing the responses from Alma for further processing</h3>
 <div class="outline-text-3" id="text-4-3">
 <p>
 That worked! Maybe we want to do something with the Data. To be able to do that, we parse the response into an XML tree, so we can get information (for example the MMS-ID) out of it or manipulate the data.
@@ -1060,8 +1066,8 @@ instance_mms.text
 </div>
 </div>
 </div>
-<div id="outline-container-org9f8f382" class="outline-3">
-<h3 id="org9f8f382"><span class="section-number-3">4.4.</span> Deleting the records again</h3>
+<div id="outline-container-org6a801b9" class="outline-3">
+<h3 id="org6a801b9"><span class="section-number-3">4.4.</span> Deleting the records again</h3>
 <div class="outline-text-3" id="text-4-4">
 <p>
 Now, let&rsquo;s delete the records, so we don&rsquo;t have to look for new examples every time this runs.
@@ -1116,8 +1122,8 @@ All good!
 </div>
 </div>
 </div>
-<div id="outline-container-org750b735" class="outline-2">
-<h2 id="org750b735"><span class="section-number-2">5.</span> Simple CLI for importing multiple records</h2>
+<div id="outline-container-org02a2456" class="outline-2">
+<h2 id="org02a2456"><span class="section-number-2">5.</span> Simple CLI for importing multiple records</h2>
 <div class="outline-text-2" id="text-5">
 <p>
 Here is a simple script which allows one to specify multiple identifiers on the command line to load into Alma. The invocation would be like this:
@@ -1128,8 +1134,8 @@ Here is a simple script which allows one to specify multiple identifiers on the 
 </pre>
 </div>
 </div>
-<div id="outline-container-org3268db6" class="outline-3">
-<h3 id="org3268db6"><span class="section-number-3">5.1.</span> Imports</h3>
+<div id="outline-container-org7388326" class="outline-3">
+<h3 id="org7388326"><span class="section-number-3">5.1.</span> Imports</h3>
 <div class="outline-text-3" id="text-5-1">
 <p>
 We import the usual suspects and our config and library code. It is assumed that your API key is stored in an environment variable <code>API_KEY</code>. The <code>argparse</code> library is used to create a simple command line interface.
@@ -1143,15 +1149,14 @@ We import the usual suspects and our config and library code. It is assumed that
 
 <span style="color: #859900; font-weight: bold;">import</span> requests
 
-<span style="color: #859900; font-weight: bold;">from</span> config <span style="color: #859900; font-weight: bold;">import</span> *
-<span style="color: #859900; font-weight: bold;">from</span> lib <span style="color: #859900; font-weight: bold;">import</span> *
-
+<span style="color: #859900; font-weight: bold;">from</span> config <span style="color: #859900; font-weight: bold;">import</span> *  <span style="color: #405A61;"># </span><span style="color: #405A61;">bad practice, import constants separately</span>
+<span style="color: #859900; font-weight: bold;">from</span> lib <span style="color: #859900; font-weight: bold;">import</span> get_bibframe_from_loc, prep_rec, get_mmsid
 </pre>
 </div>
 </div>
 </div>
-<div id="outline-container-org11be9fb" class="outline-3">
-<h3 id="org11be9fb"><span class="section-number-3">5.2.</span> Argument parsing</h3>
+<div id="outline-container-org89480e1" class="outline-3">
+<h3 id="org89480e1"><span class="section-number-3">5.2.</span> Argument parsing</h3>
 <div class="outline-text-3" id="text-5-2">
 <p>
 We want to be able to give the IDs on the command line, so we use <code>argparse</code> to make a CLI.
@@ -1190,8 +1195,8 @@ options:
 </div>
 </div>
 </div>
-<div id="outline-container-orgcf14d5e" class="outline-3">
-<h3 id="orgcf14d5e"><span class="section-number-3">5.3.</span> Getting data from LoC</h3>
+<div id="outline-container-org9fa3d35" class="outline-3">
+<h3 id="org9fa3d35"><span class="section-number-3">5.3.</span> Getting data from LoC</h3>
 <div class="outline-text-3" id="text-5-3">
 <p>
 Then we set up the session for posting to Alma:
@@ -1227,8 +1232,8 @@ Now, we are ready to get BIBFRAME from the LoC. To keep it simple, we put works 
 </div>
 </div>
 </div>
-<div id="outline-container-org8a50c2c" class="outline-3">
-<h3 id="org8a50c2c"><span class="section-number-3">5.4.</span> Importing into Alma</h3>
+<div id="outline-container-orge52aa7f" class="outline-3">
+<h3 id="orge52aa7f"><span class="section-number-3">5.4.</span> Importing into Alma</h3>
 <div class="outline-text-3" id="text-5-4">
 <p>
 Before beginning to put things into Alma, we initialize a list in which to put the MMS-IDs of the records. We will use this list to clean up afterwards, so we can use the same records multiple times for testing purposes.
@@ -1268,8 +1273,8 @@ To post the BIBFRAME works and instances to Alma, we iterate over the list of XM
 </div>
 </div>
 </div>
-<div id="outline-container-org1f67e09" class="outline-3">
-<h3 id="org1f67e09"><span class="section-number-3">5.5.</span> Cleanup after test runs</h3>
+<div id="outline-container-org5507e51" class="outline-3">
+<h3 id="org5507e51"><span class="section-number-3">5.5.</span> Cleanup after test runs</h3>
 <div class="outline-text-3" id="text-5-5">
 <p>
 For test runs, we want to delete the records again. This is controlled by the <code>--cleanup</code> flag on the command line. Work cannot be deleted if they have instances, so we need to reverse the list of MMS-IDs before iterating oder it.
@@ -1287,8 +1292,8 @@ For test runs, we want to delete the records again. This is controlled by the <c
 </div>
 </div>
 </div>
-<div id="outline-container-org9f08f8f" class="outline-3">
-<h3 id="org9f08f8f"><span class="section-number-3">5.6.</span> Example execution</h3>
+<div id="outline-container-org3d8dfd0" class="outline-3">
+<h3 id="org3d8dfd0"><span class="section-number-3">5.6.</span> Example execution</h3>
 <div class="outline-text-3" id="text-5-6">
 <p>
 You can run the script with <code>python3 bfloc2alma.py 19016283 12983234 --cleanup</code>. As we have added a shebang line, you can make the file executable on MacOS or Linux:
@@ -1330,7 +1335,7 @@ deleting <span style="color: #d33682; font-weight: bold;">97148831596703331</spa
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Stefan Schuh</p>
-<p class="date">Created: 2025-03-31 Mo 09:59</p>
+<p class="date">Created: 2025-04-01 Di 09:16</p>
 </div>
 </body>
 </html>

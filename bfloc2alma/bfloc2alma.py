@@ -5,8 +5,8 @@ from sys import exit
 
 import requests
 
-from config import *
-from lib import *
+from config import *  # bad practice, import constants separately
+from lib import get_bibframe_from_loc, prep_rec, get_mmsid
 
 parser = argparse.ArgumentParser()
 parser.add_argument("loc_ids",

@@ -1,17 +1,20 @@
 #+title: Alma API BIBFRAME
 #+property: header-args:python :python /home/ss/.virtualenvs/alma-lod/bin/python3 :results verbatim :exports code
+#+options: ^:nil
 #+INFOJS_OPT: view:t toc:t ltoc:t mouse:underline buttons:0 path:org-info.min.js
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="solarized-dark.min.css" />
-#+EXPORT_FILE_NAME: pages/index
+#+EXPORT_FILE_NAME: docs/index
 
 * About this tutorial
 This tutorial is about importing BIBFRAME from LoC into Alma. It's goal is to give you a starting point for writing your own scripts fitting your usecase. It assumes some familiarity with python or another scripting language.
 
 You can follow along by pasting the code into your Python interpreter.
 
+The source code can be found on GitHub: https://github.com/OBVSG/bfloc2alma/
+
 I will make videos discussing the parts of it and add links to them here.
 
-If you spot any errors, please report them to me: stefan.schuh@obvsg.at
+If you spot any errors, please report them to me: [[stefan.schuh@obvsg.at][mailto:stefan.schuh@obvsg.at]]
 
 English is not my native language, so I gladly take grammar corrections and style suggestions, too. ;-)
 
@@ -25,6 +28,7 @@ Note, that the invocations of the Python interpreter may vary a bit on your syst
 ** Virtual environment and third party libraries
 I don't install any Python libraries outside of virtual environments, so I don't mess up my system. If you are not concerned about that, you can skip that and jump ahead to =pip install ...=
 
+#+name: shell-venv
 #+begin_src shell
 $ python3 -m virualenv .venv
 $ source .venv/bin/activate
@@ -34,6 +38,7 @@ This creates an isolated environment and activates it. You can see this as there
 
 Once you have done that, you have to install the only dependency:
 
+#+name: shell-pip
 #+begin_src shell
 (.venv)$ pip install requests
 #+end_src
@@ -44,6 +49,7 @@ To follow along, you need an API key with read/write permissions, preferably for
 
 I assume that you have the API key in an environment variable. In bash like shells, you can accomplish this by
 
+#+name: shell-api-key
 #+begin_src shell :exports code
 $ export API_KEY_PSB=paste-api-key-here
 #+end_src
@@ -82,7 +88,7 @@ API_KEY = os.environ.get("API_KEY_PSB") or "put-your-key-here-if-you-absolutely-
 #+end_src
 
 *** API URL
-Put the base URL of your Alma API Endpoint here. As I am in Austria, it's the one for Europe. As I'm on it, I create a template for the bib API, so I can put the MMSID in it to get a full API-URL.
+Put the base URL of your Alma API Endpoint here. As I am in Austria, it's the one for Europe. As I'm on it, I create a template for the bib API, so I only need to fill in the MMSID to get a full API-URL.
 
 #+name: api-base-url
 #+begin_src python :tangle no :session python
@@ -108,8 +114,10 @@ import os
 from xml.etree import ElementTree as ET
 
 <<namespaces>>
+
 <<api-key>>
 <<api-base-url>>
+
 <<alma-session-headers>>
 #+end_src
 
@@ -122,7 +130,7 @@ At the end I want to have a CLI program that takes some LoC-IDs, gets the data f
 But first we define some functions and try it with one example, step by step.
 
 *** Imports
-For our main module to work we need to import some libraries.
+For our main module to work we need to import some modules.
 
 - Standard library
   - =os=: To get the API key from the environment
@@ -138,13 +146,8 @@ from xml.etree import ElementTree as ET
 import requests
 
 # our configuration
-# from config import *
+# from bfloc2alma.config import NS
 #+end_src
-
-#+RESULTS:
-: None
-
-Comment out the last line if you paste the code into your Python-REPL or Jupyter Notebook.
 
 *** Getting data from LoC
 We use a function to get records from LoC. The function takes following arguments:
@@ -155,6 +158,7 @@ We use a function to get records from LoC. The function takes following argument
 - =as_tree=: whether to return the result as XML string or as =ElementTree.Element= data structure for further handling.
 - =session=: if there is a session, multiple calls to the same endpoint perform much better. If we intend to get a lot of records, we can therefore pass a session to this function.
 
+#+name: get-bibframe-from-loc
 #+begin_src python :session python :tangle bfloc2alma/lib.py
 # get BIBFRAME from LoC
 def get_bibframe_from_loc(loc_id, entity="work", compact=True, as_tree=False, session=None):
@@ -186,6 +190,7 @@ def get_bibframe_from_loc(loc_id, entity="work", compact=True, as_tree=False, se
 *** Prepare BIBFRAME record for the Alma API
 For a BIBFRAME record to be posted to Almas API it has to be wrapped in some XML. It's a bad idea to do this by string manipulation, so we use the =xml.etree.ElementTree=-API of Python.
 
+#+name: prep-rec
 #+begin_src python :session python :tangle bfloc2alma/lib.py
 # prep BIBFRAME record for Alma
 def prep_rec(bf_rec):
@@ -198,7 +203,7 @@ def prep_rec(bf_rec):
       </record>
     </bib>
     """
-
+    NS = {"bf": "http://id.loc.gov/ontologies/bibframe/"}
     # bf_rec needs to be an ET.Element to be handled further
     if type(bf_rec) == str:
         bf_rec = ET.fromstring(bf_rec)
@@ -206,9 +211,9 @@ def prep_rec(bf_rec):
         raise Error("bf_rec must be str or ET.Element!")
 
     # check which entity we have
-    if bf_rec.find('bf:Work', {"bf": "http://id.loc.gov/ontologies/bibframe/"}) is not None:
+    if bf_rec.find('bf:Work', NS) is not None:
         entity = "work"
-    elif bf_rec.find('bf:Instance', {"bf": "http://id.loc.gov/ontologies/bibframe/"}) is not None:
+    elif bf_rec.find('bf:Instance', NS) is not None:
         entity = "instance"
     else:
         raise Exception("Input is neither a work nor an instance!")
@@ -227,7 +232,7 @@ def prep_rec(bf_rec):
 *** Helpers
 A small function to get the MMS-ID from an API response:
 
-#+name: get_mmsid
+#+name: get-mmsid
 #+begin_src python :session python :tangle bfloc2alma/lib.py
 def get_mmsid(response):
     """Get the MMS ID from an Alma API response."""
@@ -402,7 +407,8 @@ work_xml
 #+end_src
 
 ** Creating BIBFRAME work and instance in Alma
-Before posting something to Alma, we initiate a session. With that, all requests to the Alma API can share the same parameters (API-Key etc.). It's much faster for multiple calls, too.
+Before posting something to Alma, we initiate a session. With that, all requests to the Alma API can share the same parameters (API-Key etc.). It's much faster for multiple calls, too. The headers are the same as in the config above. We could have taken the =ALMA_API_HEADERS=, but I repeat them here so we can see them.
+
 #+begin_src python :session python
 # session for API calls to Alma
 session_alma = requests.Session()
@@ -703,9 +709,8 @@ from sys import exit
 
 import requests
 
-from config import *
-from lib import *
-
+from config import *  # bad practice, import constants separately
+from lib import get_bibframe_from_loc, prep_rec, get_mmsid
 #+end_src
 
 ** Argument parsing
@@ -838,4 +843,57 @@ deleting 99148831596603331
 deleting 97148831596703331
    204
 
+#+end_src
+* Slides :noexport:
+:PROPERTIES:
+:EXPORT_FILE_NAME: docs/slides
+:OPTIONS: H:2
+:END:
+** Preparations
+*** Python and dependencies
+#+begin_src python :noweb yes
+<<shell-venv>>
+#+end_src
+
+#+begin_src python :noweb yes
+<<shell-pip>>
+#+end_src
+*** API key
+#+begin_src python :noweb yes
+<<shell-api-key>>
+#+end_src
+** Configuration
+*** Imports
+#+begin_src python
+import os
+from xml.etree import ElementTree as ET
+#+end_src
+*** Namespaces
+#+BEGIN_SRC python :noweb yes
+<<namespaces>>
+#+END_SRC
+*** API key
+#+begin_src python :noweb yes
+<<api-key>>
+#+end_src
+*** URL for the BIB API
+#+begin_src python :noweb yes
+<<api-base-url>>
+#+end_src
+*** Headers for session
+#+begin_src python :noweb yes
+<<alma-session-headers>>
+#+end_src
+** Functions
+*** Getting data from LoC
+#+begin_src python -n :noweb yes
+<<get-bibframe-from-loc>>
+#+end_src
+*** Prepare BIBFRAME to be imported
+#+begin_src python -n :noweb yes
+<<prep-rec>>
+#+end_src
+*** Getting the MMS ID from an API response
+#+begin_src python :noweb yes
+<<get-mmsid>>
 #+end_src
