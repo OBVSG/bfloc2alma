@@ -12,7 +12,7 @@ You can follow along by pasting the code into your Python interpreter.
 
 The source code can be found on GitHub: https://github.com/OBVSG/bfloc2alma/
 
-I will make videos discussing the parts of it and add links to them here.
+There's a Video going through the material on Youtube: [[https://youtu.be/WYqgQV-oyoE]]
 
 If you spot any errors, please report them to me: [[mailto:stefan.schuh@obvsg.at][stefan.schuh@obvsg.at]]
 
@@ -242,7 +242,7 @@ def get_mmsid(response):
 #+end_src
 
 * Walkthrough with one Example
-Our Example is "Weapons of Math Destruction" by Cathy O'Neil. The ID is "19016283"
+Our Example is "Weapons of Math Destruction" by Cathy O'Neil. The ID is "19016283". You can obtain an identifier for your favorite book by searching for it at https://id.loc.gov/ and copying the Identifer from the "Identifier"-column of the search results.
 
 Another one would be Mary Roach's "Stiff", "12983234".
 
