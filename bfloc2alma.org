@@ -655,6 +655,8 @@ Interestingly, Alma can't digest it's own output. Do you remember the =<record_f
 work_tree.find("record_format").text = "lcbf_work"
 #+end_src
 
+*This will be fixed in the July 2025 release of Alma!* Ex Libris has found the bug and will fix it.
+
 To get the changed record back into Alma, we need to make a PUT request with the changed record as payload:
 #+begin_src python :session python
 changed_work_put_resp = session_alma.put(bib_api.format(mms_id=work_mms.text),
